@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: theme('colors.brand.surface');
+  color: theme('colors.brand.dark');
+}
+[x-cloak] { display: none !important; }
