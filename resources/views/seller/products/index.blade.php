@@ -1,3 +1,5 @@
+@php use Illuminate\Support\Facades\Storage; @endphp
+
 <x-seller-layout title="Products - FOUR">
 <div class="flex flex-col gap-3 mb-4">
     <div class="flex items-center justify-between">
@@ -30,16 +32,14 @@
 @forelse($products as $p)
     <div class="rounded-2xl bg-white/70 border border-black/10 p-4 flex gap-3">
         <div class="h-20 w-20 rounded-xl overflow-hidden bg-brand-primary/10">
-            @if(!empty($p->image_path))
-                <img
-                    src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($p->image_path) }}"
-                    alt="{{ $p->name }}"
-                    class="h-full w-full object-cover"
-                >
+            @if($p->image_path)
+            <img src="{{ Storage::disk('public')->url($p->image_path) }}"
+                class="h-full w-full object-cover"
+                alt="{{ $p->name }}">
             @else
-                <div class="h-full w-full grid place-items-center font-bold text-brand-primary">
-                    {{ mb_substr($p->name, 0, 1) }}
-                </div>
+            <div class="h-full w-full grid place-items-center font-bold text-brand-primary">
+                {{ mb_substr($p->name, 0, 1) }}
+            </div>
             @endif
         </div>
 
