@@ -3,8 +3,14 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "dev": "vite",
         "build": "vite build",
-        "dev": "vite"
+
+        "serve": "php artisan serve --port=8001",
+
+        "start": "concurrently -k -n VITE,LARAVEL -c blue,green \"npm run dev\" \"npm run serve\"",
+
+        "start:build": "concurrently -k -n BUILD,LARAVEL -c magenta,green \"npm run build\" \"npm run serve\""
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.2",
@@ -12,7 +18,7 @@
         "alpinejs": "^3.4.2",
         "autoprefixer": "^10.4.2",
         "axios": "^1.11.0",
-        "concurrently": "^9.0.1",
+        "concurrently": "^9.2.1",
         "laravel-vite-plugin": "^2.0.0",
         "postcss": "^8.4.31",
         "tailwindcss": "^3.1.0",

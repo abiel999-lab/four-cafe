@@ -17,20 +17,27 @@
       <div class="text-sm opacity-70">Analisis penjualan berdasarkan pesanan yang sudah dibayar</div>
     </div>
 
-    <div class="flex gap-2">
-      <a href="{{ route('seller.reports.index', ['range'=>'today']) }}"
-         class="px-4 h-11 rounded-xl border border-black/10 grid place-items-center {{ $range==='today' ? 'bg-brand-primary text-brand-surface' : 'bg-white/60' }}">
-        Hari Ini
-      </a>
-      <a href="{{ route('seller.reports.index', ['range'=>'month']) }}"
-         class="px-4 h-11 rounded-xl border border-black/10 grid place-items-center {{ $range==='month' ? 'bg-brand-primary text-brand-surface' : 'bg-white/60' }}">
-        Bulan Ini
-      </a>
-      <a href="{{ route('seller.reports.index', ['range'=>'year']) }}"
-         class="px-4 h-11 rounded-xl border border-black/10 grid place-items-center {{ $range==='year' ? 'bg-brand-primary text-brand-surface' : 'bg-white/60' }}">
-        Tahun Ini
-      </a>
-    </div>
+    <div class="flex flex-wrap items-center gap-2">
+            {{-- Range buttons --}}
+            <a href="{{ route('seller.reports.index', ['range' => 'today']) }}"
+               class="px-4 py-2 rounded-xl border border-black/10 {{ ($range ?? 'today')==='today' ? 'bg-brand-primary text-brand-surface' : 'bg-white/60' }}">
+                Hari Ini
+            </a>
+            <a href="{{ route('seller.reports.index', ['range' => 'month']) }}"
+               class="px-4 py-2 rounded-xl border border-black/10 {{ ($range ?? 'today')==='month' ? 'bg-brand-primary text-brand-surface' : 'bg-white/60' }}">
+                Bulan Ini
+            </a>
+            <a href="{{ route('seller.reports.index', ['range' => 'year']) }}"
+               class="px-4 py-2 rounded-xl border border-black/10 {{ ($range ?? 'today')==='year' ? 'bg-brand-primary text-brand-surface' : 'bg-white/60' }}">
+                Tahun Ini
+            </a>
+
+            {{-- ✅ Export button --}}
+            <a href="{{ route('seller.reports.export', ['range' => ($range ?? 'today')]) }}"
+               class="px-4 py-2 rounded-xl bg-brand-dark text-brand-surface hover:opacity-90">
+                Export (Excel)
+            </a>
+        </div>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Models\Option;
 use App\Models\Product;
 use Illuminate\Http\Request;
 
@@ -10,7 +11,81 @@ class CartController extends Controller
 {
     private function getCart(Request $request): array
     {
-        return $request->session()->get('cart', []);
+        $cart = $request->session()->get('cart', []);
+
+        // ✅ MIGRASI: kalau cart masih format lama (list dari bulk checkout),
+        // ubah jadi format baru (keyed md5) agar blade tidak error.
+        if ($this->isLegacyCart($cart)) {
+            $cart = $this->migrateLegacyCart($cart);
+            $request->session()->put('cart', $cart);
+        }
+
+        return $cart;
+    }
+
+    private function isLegacyCart(array $cart): bool
+    {
+        // legacy biasanya: [ [product_id, quantity, notes, option_ids], ... ]
+        // dan tidak punya 'unit_price'
+        if (empty($cart)) return false;
+
+        $first = reset($cart);
+
+        return is_array($first)
+            && array_key_exists('product_id', $first)
+            && !array_key_exists('unit_price', $first);
+    }
+
+    private function migrateLegacyCart(array $legacy): array
+    {
+        $new = [];
+
+        foreach ($legacy as $row) {
+            $productId = (int)($row['product_id'] ?? 0);
+            $qty = (int)($row['quantity'] ?? 0);
+            if ($productId <= 0 || $qty <= 0) continue;
+
+            $product = Product::query()
+                ->with(['options' => fn($q) => $q->where('is_active', true)])
+                ->find($productId);
+
+            if (!$product) continue;
+
+            $optionIds = collect($row['option_ids'] ?? [])
+                ->map(fn($v) => (int)$v)
+                ->filter(fn($v) => $v > 0)
+                ->sort()
+                ->values()
+                ->all();
+
+            $notes = (($row['notes'] ?? '') ?: '');
+            $key = md5($product->id.'|'.implode(',', $optionIds).'|'.$notes);
+
+            $options = $product->options->whereIn('id', $optionIds)->values();
+            $optionsTotal = (int)$options->sum('price');
+
+            if (!isset($new[$key])) {
+                $new[$key] = [
+                    'key' => $key,
+                    'product_id' => $product->id,
+                    'product_name' => $product->name,
+                    'unit_price' => (int)$product->price,
+                    'quantity' => 0,
+                    'option_ids' => $optionIds,
+                    'options' => $options->map(fn($o) => [
+                        'id' => $o->id,
+                        'name' => $o->name,
+                        'price' => (int)$o->price,
+                    ])->all(),
+                    'options_total' => $optionsTotal,
+                    'notes' => ($notes !== '' ? $notes : null),
+                ];
+            }
+
+            $new[$key]['quantity'] = min(99, (int)$new[$key]['quantity'] + $qty);
+        }
+
+        return $new;
     }
 
     private function saveCart(Request $request, array $cart): void
@@ -34,17 +109,24 @@ class CartController extends Controller
             'notes' => ['nullable','string','max:255'],
         ]);
 
-        $product = Product::query()->with(['options' => fn($q) => $q->where('is_active', true)])->findOrFail($data['product_id']);
-        $qty = (int)($data['quantity'] ?? 1);
+        $product = Product::query()
+            ->with(['options' => fn($q) => $q->where('is_active', true)])
+            ->findOrFail($data['product_id']);
 
-        $optionIds = collect($data['option_ids'] ?? [])->map(fn($v) => (int)$v)->sort()->values()->all();
+        $qty = max(1, min(99, (int)($data['quantity'] ?? 1)));
+
+        $optionIds = collect($data['option_ids'] ?? [])
+            ->map(fn($v) => (int)$v)
+            ->filter(fn($v) => $v > 0)
+            ->sort()
+            ->values()
+            ->all();
+
         $options = $product->options->whereIn('id', $optionIds)->values();
-
         $optionsTotal = (int)$options->sum('price');
-        $unit = (int)$product->price + $optionsTotal;
 
-        // key unik berdasarkan produk+options+notes
-        $key = md5($product->id.'|'.implode(',', $optionIds).'|'.(($data['notes'] ?? '') ?: ''));
+        $notes = (($data['notes'] ?? '') ?: '');
+        $key = md5($product->id.'|'.implode(',', $optionIds).'|'.$notes);
 
         $cart = $this->getCart($request);
 
@@ -55,16 +137,21 @@ class CartController extends Controller
                 'product_name' => $product->name,
                 'unit_price' => (int)$product->price,
                 'quantity' => 0,
-                'options' => $options->map(fn($o) => ['id'=>$o->id,'name'=>$o->name,'price'=>(int)$o->price])->all(),
+                'option_ids' => $optionIds,
+                'options' => $options->map(fn($o) => [
+                    'id' => $o->id,
+                    'name' => $o->name,
+                    'price' => (int)$o->price,
+                ])->all(),
                 'options_total' => $optionsTotal,
-                'notes' => ($data['notes'] ?? null),
+                'notes' => ($notes !== '' ? $notes : null),
             ];
         }
 
         $cart[$key]['quantity'] = min(99, (int)$cart[$key]['quantity'] + $qty);
         $this->saveCart($request, $cart);
 
-        return redirect()->route('customer.cart.show')->with('success', 'Produk ditambahkan ke keranjang.');
+        return back()->with('success', 'Produk ditambahkan ke keranjang.');
     }
 
     public function update(Request $request)
@@ -75,6 +162,7 @@ class CartController extends Controller
         ]);
 
         $cart = $this->getCart($request);
+
         if (isset($cart[$data['key']])) {
             $cart[$data['key']]['quantity'] = (int)$data['quantity'];
             $this->saveCart($request, $cart);

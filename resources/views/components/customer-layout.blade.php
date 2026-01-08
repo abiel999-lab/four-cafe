@@ -12,6 +12,10 @@
     <meta name="theme-color" content="#a27029">
 </head>
 <body class="bg-brand-surface text-brand-dark">
+    @php
+        $cartCount = collect(session('cart', []))->sum('quantity');
+    @endphp
+
     <header class="sticky top-0 z-50 bg-brand-surface/80 backdrop-blur border-b border-black/10">
         <div class="mx-auto max-w-7xl px-3 sm:px-6">
             <div class="flex h-16 items-center justify-between gap-3">
@@ -22,8 +26,24 @@
 
                 <div class="flex items-center gap-2">
                     <a href="{{ route('customer.menu') }}"
-                       class="px-4 py-2 rounded-xl bg-brand-primary text-brand-surface font-semibold">
+                       class="px-4 py-2 rounded-xl border border-black/10 bg-white/60 font-semibold">
+                        Menu
+                    </a>
+
+                    <a href="{{ route('customer.guide') }}"
+                       class="px-4 py-2 rounded-xl border border-black/10 bg-white/60 font-semibold">
+                        Panduan
+                    </a>
+
+                    <a href="{{ route('customer.cart.show') }}"
+                       class="relative px-4 py-2 rounded-xl bg-brand-primary text-brand-surface font-semibold">
                         Keranjang
+
+                        @if($cartCount > 0)
+                            <span class="absolute -top-2 -right-2 min-w-[22px] h-[22px] px-1 rounded-full bg-red-600 text-white text-xs font-bold grid place-items-center">
+                                {{ $cartCount > 99 ? '99+' : $cartCount }}
+                            </span>
+                        @endif
                     </a>
                 </div>
             </div>
@@ -38,7 +58,15 @@
             <div class="mb-4 rounded-xl bg-red-100 p-3 text-red-900">{{ session('error') }}</div>
         @endif
 
-        {{ $slot }}
+        {{-- ✅ SUPAYA TIDAK ERROR:
+             - Jika file ini dipakai oleh @extends -> pakai @yield('content')
+             - Jika file ini dipakai sebagai component -> pakai $slot
+        --}}
+        @hasSection('content')
+            @yield('content')
+        @else
+            {{ $slot ?? '' }}
+        @endif
     </main>
 </body>
 </html>

@@ -23,6 +23,8 @@
         ['Options','seller.options.index','seller.options.*'],
         ['Reports','seller.reports.index','seller.reports.*'],
         ['Settings','seller.settings.edit','seller.settings.*'],
+        ['Panduan Aplikasi','seller.help','seller.help'],
+
     ];
 @endphp
 

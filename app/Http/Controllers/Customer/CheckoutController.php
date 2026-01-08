@@ -14,72 +14,35 @@ use App\Models\Option;
 
 class CheckoutController extends Controller
 {
-    public function bulk(Request $request)
+    public function show(Request $request)
     {
-        $qty = $request->input('qty', []);
-        $notes = $request->input('notes', []);
-        $optionIds = $request->input('option_ids', []);
-
-        $cart = [];
-
-        foreach ($qty as $productId => $q) {
-            $productId = (int)$productId;
-            $q = (int)$q;
-
-            if ($productId <= 0 || $q <= 0) continue;
-
-            $cart[] = [
-                'product_id' => $productId,
-                'quantity' => $q,
-                'notes' => $notes[$productId] ?? null,
-                'option_ids' => isset($optionIds[$productId]) ? (array)$optionIds[$productId] : [],
-            ];
-        }
-
-        if (empty($cart)) {
-            return redirect()->route('customer.menu')->with('error', 'Isi qty minimal 1 item untuk checkout.');
-        }
-
-        session(['cart' => $cart]);
-
-        return redirect()->route('customer.checkout.show');
-    }
-
-    public function show()
-    {
-        $cart = session('cart', []);
+        $cart = $request->session()->get('cart', []);
         if (empty($cart)) {
             return redirect()->route('customer.menu')->with('error', 'Keranjang kosong.');
         }
 
-        // hitung total untuk tampilan
         $total = 0;
         $lines = [];
 
         foreach ($cart as $row) {
-            $product = Product::find($row['product_id']);
-            if (!$product) continue;
-
             $qty = (int)($row['quantity'] ?? 1);
             $qty = max(1, min(99, $qty));
 
-            $optionsTotal = 0;
-            $optNames = [];
+            $unitPrice = (int)($row['unit_price'] ?? 0);
 
-            $ids = $row['option_ids'] ?? [];
-            if (!empty($ids)) {
-                $options = Option::whereIn('id', $ids)->get();
-                foreach ($options as $op) {
-                    $optionsTotal += (int)$op->price;
-                    $optNames[] = $op->name;
-                }
+            // options dari cart
+            $optNames = [];
+            $optionsTotal = 0;
+            foreach (($row['options'] ?? []) as $op) {
+                $optNames[] = $op['name'];
+                $optionsTotal += (int)($op['price'] ?? 0);
             }
 
-            $lineTotal = ((int)$product->price + $optionsTotal) * $qty;
+            $lineTotal = ($unitPrice + $optionsTotal) * $qty;
             $total += $lineTotal;
 
             $lines[] = [
-                'name' => $product->name,
+                'name' => $row['product_name'] ?? 'Produk',
                 'qty' => $qty,
                 'line_total' => $lineTotal,
                 'options' => $optNames,
@@ -99,7 +62,7 @@ class CheckoutController extends Controller
             'customer_name' => ['required', 'string', 'max:80'],
         ]);
 
-        $cart = session('cart', []);
+        $cart = $request->session()->get('cart', []);
         if (empty($cart)) {
             return redirect()->route('customer.menu')->with('error', 'Keranjang kosong.');
         }
@@ -110,7 +73,7 @@ class CheckoutController extends Controller
                 $order = new Order();
                 $order->code = $this->generateCode();
                 $order->customer_name = $validated['customer_name'];
-                $order->order_type = 'counter'; // tidak pakai dinein/takeaway
+                $order->order_type = 'counter';
                 $order->table_code = null;
                 $order->status = 'unpaid';
                 $order->subtotal = 0;
@@ -124,10 +87,11 @@ class CheckoutController extends Controller
                     $productId = (int)($row['product_id'] ?? 0);
                     if ($productId <= 0) continue;
 
-                    $product = Product::query()->lockForUpdate()->findOrFail($productId);
-
                     $qty = (int)($row['quantity'] ?? 1);
                     $qty = max(1, min(99, $qty));
+
+                    // lock product untuk aman stok
+                    $product = Product::query()->lockForUpdate()->findOrFail($productId);
 
                     if ((int)$product->stock < $qty) {
                         throw new \RuntimeException("Stock {$product->name} tidak cukup. Sisa: {$product->stock}");
@@ -135,12 +99,18 @@ class CheckoutController extends Controller
 
                     $unitPrice = (int)$product->price;
 
+                    // untuk keamanan, options diambil ulang dari DB berdasarkan option_ids
+                    $optionIds = collect($row['option_ids'] ?? [])
+                        ->map(fn($v) => (int)$v)
+                        ->filter(fn($v) => $v > 0)
+                        ->values()
+                        ->all();
+
                     $optionsPayload = [];
                     $optionsTotal = 0;
 
-                    $ids = $row['option_ids'] ?? [];
-                    if (!empty($ids)) {
-                        $options = Option::whereIn('id', $ids)->get();
+                    if (!empty($optionIds)) {
+                        $options = Option::whereIn('id', $optionIds)->get();
                         foreach ($options as $op) {
                             $optionsPayload[] = [
                                 'id' => $op->id,

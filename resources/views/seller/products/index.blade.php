@@ -30,8 +30,12 @@
 @forelse($products as $p)
     <div class="rounded-2xl bg-white/70 border border-black/10 p-4 flex gap-3">
         <div class="h-20 w-20 rounded-xl overflow-hidden bg-brand-primary/10">
-            @if($p->image_path)
-                <img src="{{ asset('storage/'.$p->image_path) }}" class="h-full w-full object-cover">
+            @if(!empty($p->image_path))
+                <img
+                    src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($p->image_path) }}"
+                    alt="{{ $p->name }}"
+                    class="h-full w-full object-cover"
+                >
             @else
                 <div class="h-full w-full grid place-items-center font-bold text-brand-primary">
                     {{ mb_substr($p->name, 0, 1) }}
@@ -54,7 +58,8 @@
 
                 <form method="POST" action="{{ route('seller.products.destroy', $p) }}"
                       onsubmit="return confirm('Hapus produk?')">
-                    @csrf @method('DELETE')
+                    @csrf
+                    @method('DELETE')
                     <button class="px-3 py-1 rounded-lg bg-red-600 text-white">
                         Hapus
                     </button>
