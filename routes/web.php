@@ -15,6 +15,9 @@ use App\Http\Controllers\Seller\OptionController;
 use App\Http\Controllers\Seller\ReportController;
 use App\Http\Controllers\Seller\SettingController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+    // routes/web.php
+use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Storage;
 
 Route::get('/', function () {
     return redirect()->route('customer.menu');
@@ -88,5 +91,19 @@ Route::middleware(['auth', 'seller'])
             return view('seller.help.index');
         })->name('help');
     });
+
+
+
+    Route::get('/storage/{path}', function ($path) {
+        $full = 'public/' . $path; // storage/app/public/...
+
+        abort_unless(Storage::exists($full), 404);
+
+        return Response::make(Storage::get($full), 200, [
+            'Content-Type' => Storage::mimeType($full) ?? 'application/octet-stream',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    })->where('path', '.*');
+
 
 require __DIR__ . '/auth.php';
