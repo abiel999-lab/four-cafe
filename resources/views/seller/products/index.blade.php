@@ -1,6 +1,22 @@
-@php use Illuminate\Support\Facades\Storage; @endphp
-
 <x-seller-layout title="Products - FOUR">
+@php
+  $imgUrl = function (?string $path) {
+      if (empty($path)) return null;
+
+      $path = ltrim($path, '/');
+
+      if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+          return $path;
+      }
+
+      if (str_starts_with($path, 'storage/')) {
+          return url($path);
+      }
+
+      return asset($path);
+  };
+@endphp
+
 <div class="flex flex-col gap-3 mb-4">
     <div class="flex items-center justify-between">
         <div class="text-xl font-bold">Products</div>
@@ -32,14 +48,18 @@
 @forelse($products as $p)
     <div class="rounded-2xl bg-white/70 border border-black/10 p-4 flex gap-3">
         <div class="h-20 w-20 rounded-xl overflow-hidden bg-brand-primary/10">
-            @if($p->image_path)
-            <img src="{{ Storage::disk('public')->url($p->image_path) }}"
-                class="h-full w-full object-cover"
-                alt="{{ $p->name }}">
+            @php $url = $imgUrl($p->image_path); @endphp
+
+            @if($url)
+                <img src="{{ $url }}"
+                     class="h-full w-full object-cover"
+                     alt="{{ $p->name }}"
+                     onerror="this.style.display='none';"
+                >
             @else
-            <div class="h-full w-full grid place-items-center font-bold text-brand-primary">
-                {{ mb_substr($p->name, 0, 1) }}
-            </div>
+                <div class="h-full w-full grid place-items-center font-bold text-brand-primary">
+                    {{ mb_substr($p->name, 0, 1) }}
+                </div>
             @endif
         </div>
 

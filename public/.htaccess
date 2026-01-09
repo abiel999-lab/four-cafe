@@ -5,21 +5,32 @@
 
     RewriteEngine On
 
-    # Handle Authorization Header
+    # Handle Authorization Header (needed for some APIs)
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Handle X-XSRF-Token Header
+    # Handle X-XSRF-Token Header (useful for SPA / Sanctum, etc.)
     RewriteCond %{HTTP:x-xsrf-token} .
-    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:x-xsrf-token}]
 
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_URI} (.+)/$
-    RewriteRule ^ %1 [L,R=301]
+    RewriteRule ^(.+)/$ $1 [L,R=301]
 
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Disable directory listing
+Options -Indexes
+
+# Protect sensitive files (optional but recommended)
+<FilesMatch "^\.(env|git|htaccess)">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(env|log|sql|sqlite|bak|ini|yml|yaml|json)$">
+    Require all denied
+</FilesMatch>
