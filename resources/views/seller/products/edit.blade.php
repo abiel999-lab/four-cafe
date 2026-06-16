@@ -1,15 +1,54 @@
 <x-seller-layout title="Edit Produk - FOUR">
+@php
+    /**
+     * Buat URL gambar yang kompatibel di Hostinger (tanpa storage:link).
+     * Target file berada di public/products/...
+     */
+    $imgUrl = function (?string $path) {
+        if (empty($path)) return null;
+
+        $path = ltrim($path, '/');
+
+        // kalau sudah URL lengkap
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        // kalau masih pakai storage/... (kalau kamu punya route /storage/{path}, ini tetap bisa)
+        if (str_starts_with($path, 'storage/')) {
+            return url($path);
+        }
+
+        // kalau cuma filename (contoh: abc.jpg) → arahkan ke products/abc.jpg
+        if (!str_contains($path, '/')) {
+            $path = 'products/' . $path;
+        }
+
+        // kalau sudah products/... atau path lain di public → pakai asset
+        return asset($path);
+    };
+
+    $preview = $imgUrl($product->image_path);
+@endphp
+
 <div class="text-xl font-bold mb-4">Edit Produk</div>
 
 <div class="rounded-2xl bg-white/70 border border-black/10 p-4">
-    <form method="POST" action="{{ route('seller.products.update', $product) }}" enctype="multipart/form-data" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        @csrf @method('PUT')
+    <form method="POST"
+          action="{{ route('seller.products.update', $product) }}"
+          enctype="multipart/form-data"
+          class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        @csrf
+        @method('PUT')
 
         <div class="flex flex-col gap-3">
             <div class="flex gap-3 items-center">
                 <div class="h-20 w-20 rounded-2xl overflow-hidden bg-brand-primary/10 border border-black/10 shrink-0">
-                    @if($product->image_path)
-                        <img src="{{ asset('storage/'.$product->image_path) }}" alt="{{ $product->name }}" class="h-full w-full object-cover">
+                    @if($preview)
+                        <img src="{{ $preview }}"
+                             alt="{{ $product->name }}"
+                             class="h-full w-full object-cover"
+                             onerror="this.style.display='none'; this.parentElement.innerHTML = `<div class='h-full w-full grid place-items-center text-brand-primary font-extrabold text-xl'>{{ mb_substr($product->name, 0, 1) }}</div>`;">
                     @else
                         <div class="h-full w-full grid place-items-center text-brand-primary font-extrabold text-xl">
                             {{ mb_substr($product->name, 0, 1) }}
@@ -25,7 +64,9 @@
                 <label class="text-sm font-semibold">Kategori</label>
                 <select name="category_id" required class="mt-1 w-full rounded-xl border-black/10 focus:border-brand-primary focus:ring-brand-primary">
                     @foreach($categories as $cat)
-                        <option value="{{ $cat->id }}" @selected(old('category_id', $product->category_id)==$cat->id)>{{ $cat->name }}</option>
+                        <option value="{{ $cat->id }}" @selected(old('category_id', $product->category_id)==$cat->id)>
+                            {{ $cat->name }}
+                        </option>
                     @endforeach
                 </select>
             </div>
@@ -63,7 +104,11 @@
                 </div>
                 <div class="flex items-end">
                     <label class="flex items-center gap-2">
-                        <input type="checkbox" name="is_available" value="1" class="rounded border-black/20" @checked(old('is_available', $product->is_available))>
+                        <input type="checkbox"
+                               name="is_available"
+                               value="1"
+                               class="rounded border-black/20"
+                               @checked((int)old('is_available', (int)$product->is_available) === 1)>
                         <span class="font-semibold">Tersedia</span>
                     </label>
                 </div>
@@ -77,7 +122,8 @@
 
             <div class="flex gap-2">
                 <button class="h-12 px-4 rounded-xl bg-brand-primary text-brand-surface font-semibold">Update</button>
-                <a href="{{ route('seller.products.index') }}" class="h-12 px-4 rounded-xl border border-black/10 bg-white/60 grid place-items-center">
+                <a href="{{ route('seller.products.index') }}"
+                   class="h-12 px-4 rounded-xl border border-black/10 bg-white/60 grid place-items-center">
                     Kembali
                 </a>
             </div>
@@ -91,7 +137,10 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     @foreach($options as $opt)
                         <label class="rounded-xl border border-black/10 bg-white/70 p-3 flex items-center gap-2">
-                            <input type="checkbox" name="option_ids[]" value="{{ $opt->id }}" class="rounded border-black/20"
+                            <input type="checkbox"
+                                   name="option_ids[]"
+                                   value="{{ $opt->id }}"
+                                   class="rounded border-black/20"
                                    @checked(in_array($opt->id, $selected ?? [], true))>
                             <div>
                                 <div class="font-semibold text-sm">{{ $opt->name }}</div>
